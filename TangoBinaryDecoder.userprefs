@@ -2,7 +2,8 @@
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
   <MonoDevelop.Ide.Workbench ActiveDocument="TangoBinaryDecoder/Program.cs">
     <Files>
-      <File FileName="TangoBinaryDecoder/Program.cs" Line="40" Column="10" />
+      <File FileName="TangoBinaryDecoder/Program.cs" Line="54" Column="38" />
+      <File FileName="TangoBinaryDecoder/TangoEnums.cs" Line="18" Column="29" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

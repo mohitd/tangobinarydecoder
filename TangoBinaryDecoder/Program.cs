@@ -25,6 +25,8 @@
 // THE SOFTWARE.
 using System;
 using System.IO;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace TangoBinaryDecoder
 {
@@ -37,6 +39,11 @@ namespace TangoBinaryDecoder
 
         public static void Main(string[] args)
         {
+            if (args.Length < 2)
+            {
+                Console.WriteLine("Usage: (mono) TangoBinaryDecoder.exe inputFile outputFile");
+                return;
+            }
             PointXYZ[] points;
 
             using (BinaryReader reader = new BinaryReader(File.OpenRead(args[0])))
@@ -46,7 +53,7 @@ namespace TangoBinaryDecoder
             }
                 
             PrintCoordinates(points);
-            PrintCoordinatesToFile(args[0] + ".out", points);
+            PrintCoordinatesToFile(args[1], points);
         }
 
         private static void ReadPoseFromFile(BinaryReader reader)
@@ -144,7 +151,7 @@ namespace TangoBinaryDecoder
                     if (x == 0 && y == 0 && z == 0)
                         continue;
 
-                    writer.WriteLine("(" + x + "," + y + "," + z + ")");
+                    writer.WriteLine(x + " " + y + " " + z);
                     writer.Flush();
                 }
             }
