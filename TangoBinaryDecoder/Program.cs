@@ -44,7 +44,8 @@ namespace TangoBinaryDecoder
                 Console.WriteLine("Usage: (mono) TangoBinaryDecoder.exe inputFile outputFile");
                 return;
             }
-            PointXYZ[] points;
+
+            List<PointXYZ> points;
 
             using (BinaryReader reader = new BinaryReader(File.OpenRead(args[0])))
             {
@@ -87,10 +88,10 @@ namespace TangoBinaryDecoder
             Console.WriteLine("(" + reader.ReadDouble() + "," + reader.ReadDouble() + "," + reader.ReadDouble() + "," + reader.ReadDouble() + ")");
         }
 
-        private static void ReadDepthFromFile(BinaryReader reader, out PointXYZ[] points)
+        private static void ReadDepthFromFile(BinaryReader reader, out List<PointXYZ> points)
         {
             // need to initialize this here in case the method returns
-            points = new PointXYZ[1];
+            points = new List<PointXYZ>();
 
             string frameMarker;
             try {
@@ -111,21 +112,22 @@ namespace TangoBinaryDecoder
             int pointCount = int.Parse(reader.ReadString());
             Console.WriteLine("pointCount: " + pointCount);
 
-            points = new PointXYZ[pointCount];
             //load up the data
             for (int i = 0; i < pointCount; i++)
             {
-                points[i].x = reader.ReadSingle();
-                points[i].y = reader.ReadSingle();
-                points[i].z = reader.ReadSingle();
+                PointXYZ pt = new PointXYZ();
+                pt.x = reader.ReadSingle();
+                pt.y = reader.ReadSingle();
+                pt.z = reader.ReadSingle();
+                points.Add(pt);
             }
 
             return;
         }
 
-        private static void PrintCoordinates(PointXYZ[] points)
+        private static void PrintCoordinates(List<PointXYZ> points)
         {
-            for (int i = 0; i < points.Length; i++)
+            for (int i = 0; i < points.Count; i++)
             {
                 float x = points[i].x;
                 float y = points[i].y;
@@ -138,11 +140,11 @@ namespace TangoBinaryDecoder
             }
         }
 
-        private static void PrintCoordinatesToFile(string path, PointXYZ[] points)
+        private static void PrintCoordinatesToFile(string path, List<PointXYZ> points)
         {
             using (StreamWriter writer = new StreamWriter(path))
             {
-                for (int i = 0; i < points.Length; i++)
+                for (int i = 0; i < points.Count; i++)
                 {
                     float x = points[i].x;
                     float y = points[i].y;
