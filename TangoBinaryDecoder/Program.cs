@@ -30,133 +30,143 @@ using System.Collections.Generic;
 
 namespace TangoBinaryDecoder
 {
-    class MainClass
-    {
-        struct PointXYZ
-        {
-            public float x, y, z;
-        }
+	class MainClass
+	{
+		struct PointXYZ
+		{
+			public float x, y, z;
+		};
 
-        public static void Main(string[] args)
-        {
-            if (args.Length < 2)
-            {
-                Console.WriteLine("Usage: (mono) TangoBinaryDecoder.exe inputFile outputFile");
+		public static void Main (string[] args)
+		{
+			if (args.Length < 2) {
+				Console.WriteLine ("Usage: (mono) TangoBinaryDecoder.exe inputFile outputFile");
+				return;
+			}
+
+			List<PointXYZ> points = new List<PointXYZ> ();
+
+            if (!File.Exists(args[0])) {
+                Console.WriteLine("Input file does not exist!");
                 return;
             }
 
-            List<PointXYZ> points;
+			Console.WriteLine ("Reading from " + args[0] + "...");
+			DateTime tic = DateTime.Now;
+			using (BinaryReader reader = new BinaryReader(File.OpenRead(args[0]))) {
+                // Keep reading until EOF
+				while (reader.BaseStream.Position != reader.BaseStream.Length) {
+					ReadPoseFromFile (reader);
+					ReadDepthFromFile (reader, points);
+				}
+			}
+			TimeSpan toc = DateTime.Now - tic;
+			Console.WriteLine ("[done " + toc.Milliseconds + "ms]");
 
-            using (BinaryReader reader = new BinaryReader(File.OpenRead(args[0])))
-            {
-                ReadPoseFromFile(reader);
-                ReadDepthFromFile(reader, out points);
-            }
-                
-            PrintCoordinates(points);
-            PrintCoordinatesToFile(args[1], points);
-        }
+			Console.WriteLine ("Writing " + points.Count + " points to " + args[1] + "...");
+            Console.WriteLine ("Writing " + points.Count + " points to " + args[1].Substring(0, args[1].IndexOf(".")) + ".csv" + "...");
+			DateTime tic2 = DateTime.Now;
+			WriteDepthToFile (args[1], points);
+			TimeSpan toc2 = DateTime.Now - tic2;
+			Console.WriteLine ("[done " + toc2.Milliseconds + "ms]");
+		}
 
-        private static void ReadPoseFromFile(BinaryReader reader)
+		private static void ReadPoseFromFile (BinaryReader reader)
+		{
+			if (reader == null) {
+				return;
+			}
+
+			string frameMarker;
+			try {
+				frameMarker = reader.ReadString ();
+			} catch (EndOfStreamException x) {
+				Console.WriteLine (x.StackTrace);
+				return;
+			}
+
+			if (frameMarker.CompareTo ("poseframe\n") != 0) {
+				Console.WriteLine ("Failed to read pose");
+				return;
+			}
+
+			reader.ReadString ();   // timestamp
+
+			reader.ReadInt32 ();    // BaseFrame
+			reader.ReadInt32 ();    // TargetFrame
+			reader.ReadInt32 ();    // Status
+
+			reader.ReadDouble ();   // ---\
+            reader.ReadDouble ();   //    |---- Translation (x,y,z)
+			reader.ReadDouble ();   // ---/ 
+
+			reader.ReadDouble ();   // ---\
+            reader.ReadDouble ();   //    |\
+            reader.ReadDouble ();   //    || --- Orientation (a,b,c,d)
+			reader.ReadDouble ();   // ---/
+		}
+
+		private static void ReadDepthFromFile (BinaryReader reader, List<PointXYZ> points)
+		{
+			string frameMarker;
+			try {
+				frameMarker = reader.ReadString ();
+			} catch (EndOfStreamException x) {
+				reader.BaseStream.Position = 0;
+				frameMarker = reader.ReadString ();
+				Console.WriteLine (x.StackTrace);
+				return;
+			}
+
+			if (frameMarker.CompareTo ("depthframe\n") != 0) {
+				Console.WriteLine ("Failed to read depth");
+				return;
+			}
+
+			reader.ReadString ();    // timestamp
+			int pointCount = int.Parse (reader.ReadString ());
+
+			//load up the data
+			for (int i = 0; i < pointCount; i++) {
+				PointXYZ pt = new PointXYZ ();
+				pt.x = reader.ReadSingle ();
+				pt.y = reader.ReadSingle ();
+				pt.z = reader.ReadSingle ();
+				points.Add (pt);
+			}
+
+			return;
+		}
+
+		private static void WriteDepthToFile (string path, List<PointXYZ> points)
         {
-            if (reader == null)
+            string csvPath = path.Substring(0, path.IndexOf(".")) + ".csv";
+            using (StreamWriter csvWriter = new StreamWriter(csvPath))
             {
-                return;
-            }
-
-            string frameMarker;
-            try {
-                frameMarker = reader.ReadString();
-            } catch (EndOfStreamException x) {
-                Console.WriteLine(x.StackTrace);
-                return;
-            }
-
-            if (frameMarker.CompareTo("poseframe\n") != 0)
-            {
-                Console.WriteLine("Failed to read pose");
-                return;
-            }
-
-            Console.WriteLine("timestamp: " + double.Parse(reader.ReadString()));
-
-            Console.WriteLine("BaseFrame: " + ((TangoEnums.TangoCoordinateFrameType)reader.ReadInt32()).ToString());
-            Console.WriteLine("TargetFrame: " + ((TangoEnums.TangoCoordinateFrameType)reader.ReadInt32()).ToString());
-
-            Console.WriteLine("Status: " + ((TangoEnums.TangoPoseStatusType)reader.ReadInt32()).ToString());
-            Console.WriteLine("(" + reader.ReadDouble().ToString() + "," + reader.ReadDouble() + "," + reader.ReadDouble() + ")");
-            Console.WriteLine("(" + reader.ReadDouble() + "," + reader.ReadDouble() + "," + reader.ReadDouble() + "," + reader.ReadDouble() + ")");
-        }
-
-        private static void ReadDepthFromFile(BinaryReader reader, out List<PointXYZ> points)
-        {
-            // need to initialize this here in case the method returns
-            points = new List<PointXYZ>();
-
-            string frameMarker;
-            try {
-                frameMarker = reader.ReadString();
-            } catch (EndOfStreamException x) {
-                reader.BaseStream.Position = 0;
-                frameMarker = reader.ReadString();
-                Console.WriteLine(x.StackTrace);
-                return;
-            }
-
-            if (frameMarker.CompareTo("depthframe\n") != 0) {
-                Console.WriteLine("Failed to read depth");
-                return;
-            }
-
-            Console.WriteLine("timestamp: " + double.Parse(reader.ReadString()));
-            int pointCount = int.Parse(reader.ReadString());
-            Console.WriteLine("pointCount: " + pointCount);
-
-            //load up the data
-            for (int i = 0; i < pointCount; i++)
-            {
-                PointXYZ pt = new PointXYZ();
-                pt.x = reader.ReadSingle();
-                pt.y = reader.ReadSingle();
-                pt.z = reader.ReadSingle();
-                points.Add(pt);
-            }
-
-            return;
-        }
-
-        private static void PrintCoordinates(List<PointXYZ> points)
-        {
-            for (int i = 0; i < points.Count; i++)
-            {
-                float x = points[i].x;
-                float y = points[i].y;
-                float z = points[i].z;
-
-                if (x == 0 && y == 0 && z == 0)
-                    continue;
-
-                Console.WriteLine("(" + x + "," + y + "," + z + ")");
-            }
-        }
-
-        private static void PrintCoordinatesToFile(string path, List<PointXYZ> points)
-        {
-            using (StreamWriter writer = new StreamWriter(path))
-            {
-                for (int i = 0; i < points.Count; i++)
+                // ParaView CSV column markers
+                csvWriter.WriteLine("x coord,y coord,z coord");
+                csvWriter.Flush();
+                using (StreamWriter writer = new StreamWriter(path))
                 {
-                    float x = points[i].x;
-                    float y = points[i].y;
-                    float z = points[i].z;
+                    for (int i = 0; i < points.Count; i++)
+                    {
+                        float x = points[i].x;
+                        float y = points[i].y;
+                        float z = points[i].z;
+                
+                        if (x == 0 && y == 0 && z == 0)
+                            continue;
+                
+                        // for Intrepid algorithm
+                        writer.WriteLine (x + " " + y + " " + z);
+                        writer.Flush ();
 
-                    if (x == 0 && y == 0 && z == 0)
-                        continue;
-
-                    writer.WriteLine(x + " " + y + " " + z);
-                    writer.Flush();
+                        // for Paraview viewing 
+                        csvWriter.WriteLine(x + "," + y + "," + z);
+                        csvWriter.Flush();
+                    }
                 }
             }
-        }
-    }
+		}
+	}
 }
